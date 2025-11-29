@@ -5,12 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ActivityPub Läsare</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
         .input-group { display: flex; gap: 10px; margin-bottom: 2rem; }
-        input { flex-grow: 1; padding: 10px; }
-        button { padding: 10px 20px; cursor: pointer; }
-        pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
-        .card { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #555; }
+        
+        .profile-header { display: flex; align-items: center; gap: 1rem; background: #f9f9f9; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+        
+        .post { border-bottom: 1px solid #eee; padding: 1.5rem 0; }
+        .post-date { font-size: 0.8rem; color: #888; margin-bottom: 0.5rem; display: block; }
+        .post-content { overflow-wrap: break-word; }
+        /* Mastodon content is often HTML, let's style basic paragraphs */
+        .post-content p { margin-bottom: 0.5rem; }
+        .loading { color: #666; font-style: italic; }
     </style>
 </head>
 <body>
@@ -18,51 +27,124 @@
     <h1>ActivityPub Läsare</h1>
     
     <div class="input-group">
-        <input type="text" id="ap-url" placeholder="Klistra in en ActivityPub URL (t.ex. en användarprofil)" />
-        <button onclick="fetchData()">Läs</button>
+        <input type="text" id="ap-url" placeholder="https://mastodon.social/users/Gargron" value="https://mastodon.social/users/Gargron" />
+        <button onclick="startLookup()">Hämta</button>
     </div>
 
-    <div id="result"></div>
+    <div id="profile-container"></div>
+    <h2>Tidslinje (Outbox)</h2>
+    <div id="posts-container"></div>
 
     <script>
-        async function fetchData() {
+        // Hjälpfunktion för att anropa vår Cloudflare-proxy
+        async function proxyFetch(targetUrl) {
+            const response = await fetch(`/api/lookup?target=${encodeURIComponent(targetUrl)}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        }
+
+        async function startLookup() {
             const inputUrl = document.getElementById('ap-url').value;
-            const resultDiv = document.getElementById('result');
+            const profileDiv = document.getElementById('profile-container');
+            const postsDiv = document.getElementById('posts-container');
             
             if (!inputUrl) return;
 
-            resultDiv.innerHTML = "Laddar...";
+            profileDiv.innerHTML = '<div class="loading">Hämtar profil...</div>';
+            postsDiv.innerHTML = '';
 
             try {
-                // Anropa din Cloudflare Function
-                // Vi skickar med mål-URLen som en parameter
-                const response = await fetch(`/api/lookup?target=${encodeURIComponent(inputUrl)}`);
-                const data = await response.json();
+                // 1. Hämta profilen (Actor)
+                const actor = await proxyFetch(inputUrl);
+                renderProfile(actor);
 
-                // Enkel logik för att visa rådata eller formaterad data
-                // Här kan du bygga ut logiken för att visa "Outbox" (inlägg) snyggt.
-                
-                let html = `<h3>Resultat för typ: ${data.type}</h3>`;
-                
-                // Om det är en Person/Actor, visa namn och bild
-                if (data.icon && data.icon.url) {
-                    html += `<img src="${data.icon.url}" style="width:50px;height:50px;border-radius:50%;" />`;
+                // 2. Hitta Outbox och hämta den
+                if (actor.outbox) {
+                    postsDiv.innerHTML = '<div class="loading">Hämtar inlägg från outbox...</div>';
+                    await loadOutbox(actor.outbox);
+                } else {
+                    postsDiv.innerHTML = 'Ingen outbox hittades.';
                 }
-                if (data.name) {
-                    html += `<strong> ${data.name}</strong><br>`;
-                }
-                if (data.summary) {
-                    html += `<div>${data.summary}</div>`;
-                }
-
-                // Visa rå JSON för debug
-                html += `<details><summary>Visa rå JSON</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>`;
-                
-                resultDiv.innerHTML = html;
 
             } catch (error) {
-                resultDiv.innerHTML = `<p style="color:red">Fel: ${error.message}</p>`;
+                profileDiv.innerHTML = `<p style="color:red">Fel: ${error.message}</p>`;
             }
+        }
+
+        function renderProfile(data) {
+            const container = document.getElementById('profile-container');
+            let imgHtml = '';
+            
+            // Hantera bild (Icon)
+            if (data.icon && data.icon.url) {
+                imgHtml = `<img src="${data.icon.url}" class="profile-img" />`;
+            }
+
+            container.innerHTML = `
+                <div class="profile-header">
+                    ${imgHtml}
+                    <div>
+                        <h3>${data.name || 'Namnlös'}</h3>
+                        <div>${data.summary || ''}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadOutbox(outboxUrl) {
+            try {
+                // 3. Hämta själva outbox-objektet
+                let collection = await proxyFetch(outboxUrl);
+
+                // VIKTIGT: Outboxen är ofta bara ett skal. Vi måste ofta hämta "first" (första sidan)
+                // för att få faktiska items.
+                if (collection.first) {
+                    console.log("Hämtar första sidan:", collection.first);
+                    // Ibland är 'first' ett objekt, ibland en sträng (URL)
+                    const nextUrl = typeof collection.first === 'string' ? collection.first : collection.first.id || collection.first;
+                    
+                    // Hämta sidan
+                    collection = await proxyFetch(nextUrl);
+                }
+
+                // ActivityPub använder 'orderedItems' eller 'items'
+                const items = collection.orderedItems || collection.items || [];
+                renderPosts(items);
+
+            } catch (err) {
+                document.getElementById('posts-container').innerHTML = `Kunde inte ladda inlägg: ${err.message}`;
+            }
+        }
+
+        function renderPosts(items) {
+            const container = document.getElementById('posts-container');
+            
+            if (items.length === 0) {
+                container.innerHTML = "Inga inlägg hittades.";
+                return;
+            }
+
+            let html = '';
+
+            items.forEach(item => {
+                // I outboxen är varje item oftast en aktivitet (t.ex. "Create").
+                // Det faktiska inlägget ligger i 'object'.
+                const postObject = item.type === 'Create' ? item.object : item;
+
+                // Vi visar bara om det finns textinnehåll (content)
+                if (postObject.content) {
+                    const date = new Date(postObject.published).toLocaleString();
+                    html += `
+                        <div class="post">
+                            <span class="post-date">${date}</span>
+                            <div class="post-content">${postObject.content}</div>
+                            <a href="${postObject.url || '#'}" target="_blank" style="font-size:0.8rem">Länk till original</a>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
         }
     </script>
 </body>
