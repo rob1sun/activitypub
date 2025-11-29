@@ -48,7 +48,7 @@
         .post-content img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; }
         
         .post-content.collapsed {
-            max-height: 300px; /* Maxhöjd innan knappen visas */
+            max-height: 350px; /* Maxhöjd innan knappen visas */
             overflow: hidden;
             position: relative;
             /* En snygg toning i botten */
@@ -339,7 +339,7 @@
 
             // 3. Kolla längd för "Visa mer"
             // Vi gissar att över 500 tecken är ett "långt" inlägg
-            const isLong = content.length > 500;
+            const isLong = content.length > 700;
             const contentClass = isLong ? 'post-content collapsed' : 'post-content';
             const buttonHtml = isLong ? `<button class="read-more-btn" onclick="toggleReadMore(this)">Visa hela inlägget</button>` : '';
 
@@ -422,3 +422,4 @@
     </script>
 </body>
 </html>
+
