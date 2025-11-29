@@ -2,18 +2,24 @@ export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
   
-  // Hämta 'target' parametern från din frontend (adressen vi ska läsa)
+  // Hämta mål-adressen från query-parametern
   const targetUrl = url.searchParams.get('target');
 
   if (!targetUrl) {
     return new Response(JSON.stringify({ error: "Ingen URL angiven" }), { status: 400 });
   }
 
+  // Validera att det är en http/https länk för säkerhet
+  if (!targetUrl.startsWith('http')) {
+      return new Response(JSON.stringify({ error: "Ogiltigt protokoll" }), { status: 400 });
+  }
+
   try {
-    // ActivityPub kräver specifika headers för att svara med JSON
+    // ActivityPub-servrar kräver specifika headers
     const response = await fetch(targetUrl, {
       headers: {
-        'Accept': 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"'
+        'Accept': 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams", application/json',
+        'User-Agent': 'MinActivityPubLasare/1.0' // Vissa servrar blockerar requests utan User-Agent
       }
     });
 
@@ -23,12 +29,10 @@ export async function onRequest(context) {
 
     const data = await response.json();
 
-    // Returnera datan till din frontend
     return new Response(JSON.stringify(data), {
       headers: {
         'Content-Type': 'application/json',
-        // Eftersom funktionen ligger på samma domän som frontenden behövs oftast inte CORS,
-        // men det är bra praxis om du vill vara säker.
+        // Tillåt frontend att läsa svaret
         'Access-Control-Allow-Origin': '*' 
       }
     });
