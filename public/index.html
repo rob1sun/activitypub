@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ActivityPub Läsare</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 2rem; }
+        input { flex-grow: 1; padding: 10px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+        .card { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <h1>ActivityPub Läsare</h1>
+    
+    <div class="input-group">
+        <input type="text" id="ap-url" placeholder="Klistra in en ActivityPub URL (t.ex. en användarprofil)" />
+        <button onclick="fetchData()">Läs</button>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        async function fetchData() {
+            const inputUrl = document.getElementById('ap-url').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!inputUrl) return;
+
+            resultDiv.innerHTML = "Laddar...";
+
+            try {
+                // Anropa din Cloudflare Function
+                // Vi skickar med mål-URLen som en parameter
+                const response = await fetch(`/api/lookup?target=${encodeURIComponent(inputUrl)}`);
+                const data = await response.json();
+
+                // Enkel logik för att visa rådata eller formaterad data
+                // Här kan du bygga ut logiken för att visa "Outbox" (inlägg) snyggt.
+                
+                let html = `<h3>Resultat för typ: ${data.type}</h3>`;
+                
+                // Om det är en Person/Actor, visa namn och bild
+                if (data.icon && data.icon.url) {
+                    html += `<img src="${data.icon.url}" style="width:50px;height:50px;border-radius:50%;" />`;
+                }
+                if (data.name) {
+                    html += `<strong> ${data.name}</strong><br>`;
+                }
+                if (data.summary) {
+                    html += `<div>${data.summary}</div>`;
+                }
+
+                // Visa rå JSON för debug
+                html += `<details><summary>Visa rå JSON</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>`;
+                
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color:red">Fel: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
