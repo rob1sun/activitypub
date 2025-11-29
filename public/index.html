@@ -182,11 +182,11 @@
         </header>
 
         <nav class="nav-container">
-            <button class="nav-btn active" onclick="switchTab('search')">
+            <button class="nav-btn" onclick="switchTab('search')">
                 <svg class="nav-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                 <span>Sök</span>
             </button>
-            <button class="nav-btn" onclick="loadMyFeed()">
+            <button class="nav-btn active" onclick="loadMyFeed()">
                 <svg class="nav-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
                 <span>Mitt Flöde</span>
             </button>
@@ -196,7 +196,7 @@
             </button>
         </nav>
 
-        <div id="tab-search">
+        <div id="tab-search" class="hidden">
             <div class="search-hero">
                 <div class="search-input-wrapper">
                     <svg class="search-icon-absolute" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -210,7 +210,7 @@
             <div id="search-results" class="grid hidden"></div>
         </div>
 
-        <div id="tab-feed" class="hidden">
+        <div id="tab-feed">
             <div id="feed-status" class="loading"></div>
             <div id="feed-container"></div>
         </div>
@@ -265,8 +265,20 @@
         let currentActor = null;
         let myFollows = [];
 
+        // STARTUP LOGIC
         initTheme();
-        fetch('/api/following').then(r => r.json()).then(data => myFollows = data).catch(() => {});
+        
+        // Hämta 'following'-listan OCH ladda flödet direkt
+        fetch('/api/following')
+            .then(r => r.json())
+            .then(data => {
+                myFollows = data;
+                loadMyFeed(); // Starta flödet direkt när vi har listan
+            })
+            .catch(() => {
+                loadMyFeed(); // Försök ladda flödet ändå (hanterar felmeddelanden)
+            });
+
 
         // --- ENTER KEY LISTENER ---
         document.getElementById('main-input').addEventListener('keypress', function (e) {
@@ -394,7 +406,6 @@
         }
 
         function closeModal(event) {
-            // Close only if clicked on overlay (background) or close button, not inside content
             if (event && !event.target.classList.contains('modal-overlay') && !event.target.classList.contains('modal-close-btn')) return;
             document.getElementById('modal-overlay').classList.remove('open');
         }
@@ -509,7 +520,7 @@
                 const cutoffTime = cutoffDate.getTime();
 
                 if (follows.length === 0) {
-                    status.innerHTML = "Du följer ingen än.";
+                    status.innerHTML = "Du följer ingen än. Gå till sökfliken för att hitta folk!";
                     return;
                 }
 
