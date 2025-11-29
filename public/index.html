@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Min ActivityPub Läsare</title>
     <style>
-        :root { --bg: #f0f2f5; --card: #fff; --blue: #1877f2; --green: #42b72a; --text: #1c1e21; --gray: #65676b; }
+        :root { --bg: #f0f2f5; --card: #fff; --blue: #1877f2; --green: #42b72a; --red: #dc3545; --text: #1c1e21; --gray: #65676b; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.5; }
         
         /* Navigation */
@@ -24,7 +24,7 @@
         .btn:hover { opacity: 0.9; }
         .mode-toggle { display: block; margin-top: 10px; font-size: 0.85rem; color: var(--blue); cursor: pointer; text-decoration: underline; }
 
-        /* Search Results Grid */
+        /* Grids (Search & Following) */
         .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-bottom: 20px; }
         .user-card { background: var(--card); border: 1px solid #ddd; padding: 12px; border-radius: 8px; display: flex; gap: 12px; align-items: center; }
         .user-card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
@@ -37,6 +37,8 @@
         .btn-view { background: #e4e6eb; color: black; }
         .btn-follow { background: var(--blue); color: white; }
         .btn-follow.following { background: #dafbe1; color: green; border: 1px solid green; pointer-events: none; }
+        .btn-unfollow { background: #fee2e2; color: var(--red); }
+        .btn-unfollow:hover { background: #fecaca; }
 
         /* Profile & Posts */
         .profile-header { background: var(--card); padding: 20px; border-radius: 8px; display: flex; gap: 20px; align-items: center; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
@@ -44,29 +46,18 @@
         .post { background: var(--card); padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .post-meta { font-size: 0.85rem; color: var(--gray); margin-bottom: 10px; }
         
-        /* NYTT: Hantering av långa inlägg och bilder */
+        /* Content & Read More */
         .post-content img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; }
-        
         .post-content.collapsed {
-            max-height: 400px; /* Maxhöjd innan knappen visas */
+            max-height: 450px; /* Din justerade höjd */
             overflow: hidden;
             position: relative;
-            /* En snygg toning i botten */
             mask-image: linear-gradient(180deg, #000 60%, transparent);
             -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent);
         }
-
         .read-more-btn {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            background: #f7f8fa;
-            border: none;
-            color: var(--blue);
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 0 0 8px 8px;
-            margin-top: -5px;
+            display: block; width: 100%; padding: 10px; background: #f7f8fa; border: none; color: var(--blue);
+            font-weight: bold; cursor: pointer; border-radius: 0 0 8px 8px; margin-top: -5px;
         }
         .read-more-btn:hover { background: #eef0f3; }
 
@@ -78,8 +69,9 @@
 <body>
 
     <nav class="nav">
-        <button class="nav-btn active" onclick="switchTab('search')">Sök & Upptäck</button>
+        <button class="nav-btn active" onclick="switchTab('search')">Sök</button>
         <button class="nav-btn" onclick="loadMyFeed()">Mitt Flöde</button>
+        <button class="nav-btn" onclick="loadFollowingList()">Vänner</button>
     </nav>
 
     <div id="tab-search">
@@ -92,7 +84,6 @@
         </div>
 
         <div id="error-msg" class="error hidden"></div>
-        
         <div id="search-results" class="grid hidden"></div>
 
         <div id="profile-view" class="hidden">
@@ -107,6 +98,11 @@
         <div id="feed-container"></div>
     </div>
 
+    <div id="tab-following" class="hidden">
+        <h3>Personer du följer</h3>
+        <div id="following-list" class="grid"></div>
+    </div>
+
     <script>
         // --- State ---
         let isSearchMode = true;
@@ -116,18 +112,86 @@
         // --- Init ---
         fetch('/api/following').then(r => r.json()).then(data => myFollows = data).catch(() => {});
 
-        // --- UI & Routing ---
+        // --- Navigation ---
         function switchTab(tab) {
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             
-            document.getElementById('tab-search').classList.add('hidden');
-            document.getElementById('tab-feed').classList.add('hidden');
+            ['tab-search', 'tab-feed', 'tab-following'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            if (tab === 'search') document.getElementById('tab-search').classList.remove('hidden');
-            if (tab === 'feed') document.getElementById('tab-feed').classList.remove('hidden');
+            document.getElementById('tab-' + tab).classList.remove('hidden');
         }
 
+        // --- 1. VÄNNER / FÖLJER LISTA ---
+        async function loadFollowingList() {
+            switchTab('following');
+            const container = document.getElementById('following-list');
+            container.innerHTML = '<div class="loading">Hämtar listan...</div>';
+
+            try {
+                // Hämta färsk lista
+                const res = await fetch('/api/following');
+                myFollows = await res.json();
+
+                if (myFollows.length === 0) {
+                    container.innerHTML = '<div>Du följer ingen än. Gå till "Sök" för att hitta folk!</div>';
+                    return;
+                }
+
+                let html = '';
+                myFollows.forEach(user => {
+                    html += `
+                        <div class="user-card" id="card-${user.url}">
+                            <img src="${user.icon || ''}" alt="${user.name}">
+                            <div class="user-info">
+                                <div class="user-name">${user.name}</div>
+                                <div class="user-handle" title="${user.handle}">${user.handle}</div>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn-sm btn-view" onclick="openProfile('${user.handle}')">Visa flöde</button>
+                                <button class="btn-sm btn-unfollow" onclick="removeFollow('${user.url}')">Sluta följ</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+
+            } catch (err) {
+                container.innerHTML = `<div class="error">Kunde inte hämta lista: ${err.message}</div>`;
+            }
+        }
+
+        async function removeFollow(url) {
+            if(!confirm("Vill du sluta följa denna person?")) return;
+
+            // Optimistisk UI-uppdatering (ta bort kortet direkt)
+            const card = document.getElementById(`card-${url}`);
+            if(card) card.style.opacity = '0.5';
+
+            try {
+                await fetch('/api/following', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ url: url }) // Vi behöver bara URL för att ta bort
+                });
+                // Uppdatera lokal cache
+                myFollows = myFollows.filter(u => u.url !== url);
+                if(card) card.remove();
+            } catch (e) {
+                alert("Något gick fel: " + e.message);
+                if(card) card.style.opacity = '1';
+            }
+        }
+
+        function openProfile(handle) {
+            // Byt till sökfliken och öppna profilen direkt
+            // Hitta sök-knappen i naven och simulera klick för att byta flik snyggt
+            const searchTabBtn = document.querySelectorAll('.nav-btn')[0];
+            searchTabBtn.click(); // Detta kör switchTab('search') via onclick
+            viewUser(handle);
+        }
+
+
+        // --- 2. SÖK & PROFIL ---
         function toggleSearchMode() {
             isSearchMode = !isSearchMode;
             const input = document.getElementById('main-input');
@@ -135,8 +199,7 @@
             const text = document.getElementById('mode-text');
             const results = document.getElementById('search-results');
             
-            results.innerHTML = '';
-            results.classList.add('hidden');
+            results.innerHTML = ''; results.classList.add('hidden');
             document.getElementById('profile-view').classList.add('hidden');
             document.getElementById('error-msg').classList.add('hidden');
 
@@ -151,20 +214,15 @@
             }
         }
 
-        function handleAction() {
-            if (isSearchMode) performSearch();
-            else performDirectLookup();
-        }
+        function handleAction() { isSearchMode ? performSearch() : performDirectLookup(); }
 
-        // --- 1. SÖK FUNKTION ---
         async function performSearch() {
             const query = document.getElementById('main-input').value.trim();
             const grid = document.getElementById('search-results');
             const errorDiv = document.getElementById('error-msg');
             
             if (!query) return;
-
-            grid.innerHTML = '<div class="loading">Söker i Fediversum...</div>';
+            grid.innerHTML = '<div class="loading">Söker...</div>';
             grid.classList.remove('hidden');
             document.getElementById('profile-view').classList.add('hidden');
             errorDiv.classList.add('hidden');
@@ -174,17 +232,17 @@
                 const data = await proxyFetch(searchUrl);
 
                 if (!data.accounts || data.accounts.length === 0) {
-                    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center">Inga träffar hittades.</div>';
+                    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center">Inga träffar.</div>';
                     return;
                 }
 
                 let html = '';
+                // Säkerställ att vi har senaste listan
                 try { myFollows = await (await fetch('/api/following')).json(); } catch(e){}
 
                 data.accounts.forEach(user => {
                     let handle = user.acct;
                     if (!handle.includes('@')) handle += '@mastodon.social';
-
                     const isFollowing = myFollows.some(u => u.url === user.url || u.handle === handle);
 
                     html += `
@@ -205,18 +263,13 @@
                     `;
                 });
                 grid.innerHTML = html;
-
             } catch (err) {
-                errorDiv.innerText = "Sökning misslyckades: " + err.message;
-                errorDiv.classList.remove('hidden');
-                grid.innerHTML = '';
+                errorDiv.innerText = "Fel: " + err.message; errorDiv.classList.remove('hidden'); grid.innerHTML = '';
             }
         }
 
-        // --- 2. VISA ANVÄNDARE ---
         async function viewUser(handle) {
             if (!isSearchMode) document.getElementById('search-results').classList.add('hidden');
-            
             const profileView = document.getElementById('profile-view');
             const profileHeader = document.getElementById('profile-header');
             const profilePosts = document.getElementById('profile-posts');
@@ -230,7 +283,6 @@
             try {
                 const profileUrl = await resolveHandle(handle);
                 currentActor = await proxyFetch(profileUrl);
-                
                 await renderProfileHeader(currentActor, handle);
 
                 if (currentActor.outbox) {
@@ -240,7 +292,6 @@
                 } else {
                     profilePosts.innerHTML = 'Ingen publik outbox.';
                 }
-
             } catch (err) {
                 errorDiv.innerText = "Kunde inte ladda profil: " + err.message;
                 errorDiv.classList.remove('hidden');
@@ -272,14 +323,12 @@
             document.getElementById('profile-header').innerHTML = html;
         }
 
-        // --- 3. DIREKT HÄMTNING ---
         async function performDirectLookup() {
             const input = document.getElementById('main-input').value.trim();
-            if (!input) return;
-            viewUser(input);
+            if (input) viewUser(input);
         }
 
-        // --- 4. FLÖDE ---
+        // --- 3. FLÖDE ---
         async function loadMyFeed() {
             switchTab('feed');
             const container = document.getElementById('feed-container');
@@ -291,10 +340,9 @@
             try {
                 const follows = await (await fetch('/api/following')).json();
                 if (follows.length === 0) {
-                    status.innerHTML = "Du följer ingen än. <a href='#' onclick='switchTab(\"search\")'>Gå till sök!</a>";
+                    status.innerHTML = "Du följer ingen än.";
                     return;
                 }
-
                 const promises = follows.map(async (user) => {
                     try {
                         const actor = await proxyFetch(user.url);
@@ -306,30 +354,22 @@
                     } catch(e) {}
                     return [];
                 });
-
                 const results = await Promise.all(promises);
                 const allPosts = results.flat().sort((a,b) => new Date((b.object||b).published) - new Date((a.object||a).published));
                 
                 status.classList.add('hidden');
-                
                 let html = '';
-                allPosts.forEach(item => {
-                    html += createPostHTML(item);
-                });
+                allPosts.forEach(item => { html += createPostHTML(item); });
                 container.innerHTML = html;
-
             } catch(e) { status.innerText = "Fel: " + e.message; }
         }
 
-        // --- GEMENSAM POST RENDERARE (Fixar Länkar & Maxhöjd) ---
+        // --- HELPERS & RENDER ---
         function createPostHTML(item) {
             const post = item.type === 'Create' ? item.object : item;
             if(!post.content) return '';
 
-            // 1. Tvinga länkar till ny flik
             let content = post.content.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
-            
-            // 2. Hantera media (bilder)
             let mediaHtml = '';
             if(post.attachment) {
                 post.attachment.forEach(att => {
@@ -337,9 +377,8 @@
                 });
             }
 
-            // 3. Kolla längd för "Visa mer"
-            // Vi gissar att över 500 tecken är ett "långt" inlägg
-            const isLong = content.length > 800;
+            // Justerad logik: 700 tecken innan "Visa mer"
+            const isLong = content.length > 700;
             const contentClass = isLong ? 'post-content collapsed' : 'post-content';
             const buttonHtml = isLong ? `<button class="read-more-btn" onclick="toggleReadMore(this)">Visa hela inlägget</button>` : '';
 
@@ -368,24 +407,17 @@
             btn.remove();
         }
 
-        // --- HELPERS (Outbox Load) ---
         async function loadOutbox(url, containerId) {
             const container = document.getElementById(containerId);
-            
             let data = await proxyFetch(url);
             if (data.first) data = await proxyFetch(typeof data.first === 'string' ? data.first : data.first.id);
-            
             const items = data.orderedItems || data.items || [];
-            
             let html = '';
-            items.forEach(item => {
-                html += createPostHTML({...item, author: currentActor.name}); // Lägg till författare för kontext
-            });
-            
+            items.forEach(item => { html += createPostHTML({...item, author: currentActor.name}); });
             if (html) container.innerHTML = html;
         }
 
-        // --- FÖLJA FUNKTIONER ---
+        // --- API & FÖLJA ---
         async function quickFollow(url, handle, icon, name, btnId) {
             const btn = document.getElementById(`btn-${btnId}`);
             btn.innerText = "...";
@@ -402,7 +434,6 @@
             renderProfileHeader(currentActor, handle);
         }
 
-        // --- NETWORK HELPERS ---
         async function proxyFetch(url) {
             const res = await fetch(`/api/lookup?target=${encodeURIComponent(url)}`);
             if (!res.ok) { const j = await res.json().catch(()=>{}); throw new Error(j?.error || `HTTP ${res.status}`); }
@@ -422,6 +453,3 @@
     </script>
 </body>
 </html>
-
-
-
