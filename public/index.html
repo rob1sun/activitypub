@@ -120,11 +120,11 @@
     <div class="container">
         <h1>ActivityPub Läsare</h1>
         
-        <div class="search-box">
-            <input type="text" id="ap-input" placeholder="Användare@domän (t.ex. Gargron@mastodon.social)" />
-            <button id="search-btn" onclick="startLookup()">Hämta</button>
-            <button onclick="discoverUsers()">🎲 Hitta slumpmässiga profiler</button>
-        </div>
+    <div class="search-box">
+        <input type="text" id="ap-input" placeholder="Namn eller adress..." />
+        <button id="fetch-btn" onclick="startLookup()">Hämta</button>
+        <button id="search-btn" onclick="searchUsers()" style="background-color: #6c757d; margin-left: 5px;">Sök</button>
+    </div>
 
         <div id="error-msg" class="error hidden"></div>
 
@@ -342,8 +342,79 @@
         container.innerHTML = `<p class="error">Kunde inte ladda katalogen: ${error.message}</p>`;
     }
 }
+async function searchUsers() {
+    const input = document.getElementById('ap-input').value.trim();
+    const container = document.getElementById('profile-container');
+    const postsDiv = document.getElementById('posts-container');
+    const titleDiv = document.getElementById('timeline-title');
+
+    if (!input) {
+        alert("Skriv in ett namn att söka efter!");
+        return;
+    }
+
+    // Rensa tidigare innehåll
+    postsDiv.innerHTML = '';
+    titleDiv.classList.add('hidden');
+    container.innerHTML = '<div class="loading">Söker i Fediversum...</div>';
+
+    try {
+        // Vi använder mastodon.socials sök-API.
+        // type=accounts säger att vi bara vill ha användare, inte inlägg.
+        const searchUrl = `https://mastodon.social/api/v2/search?q=${encodeURIComponent(input)}&type=accounts&limit=5`;
+        
+        // Hämta via vår proxy
+        const data = await proxyFetch(searchUrl);
+        
+        // Svaret ligger i data.accounts
+        const accounts = data.accounts || [];
+
+        if (accounts.length === 0) {
+            container.innerHTML = '<div class="error">Inga användare hittades.</div>';
+            return;
+        }
+
+        let html = '<h2>Sökresultat</h2><div style="display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">';
+
+        accounts.forEach(user => {
+            // Om användaren är på en annan server ser 'acct' ut som 'user@domain'.
+            // Om de är på samma server (mastodon.social) ser den ut som 'user'. Vi måste fixa det.
+            let handle = user.acct;
+            if (!handle.includes('@')) {
+                handle = `${handle}@mastodon.social`;
+            }
+
+            html += `
+                <div style="border:1px solid #ddd; padding:15px; border-radius:8px; display:flex; gap:10px; align-items:center; background:white;">
+                    <img src="${user.avatar}" style="width:50px;height:50px;border-radius:50%; object-fit:cover;">
+                    <div style="overflow:hidden;">
+                        <div style="font-weight:bold;">${user.display_name || user.username}</div>
+                        <div style="font-size:0.8rem; color:#666; margin-bottom:5px;">@${handle}</div>
+                        
+                        <button onclick="selectUser('${handle}')" style="padding:5px 10px; font-size:0.8rem;">Välj</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = `<p class="error">Sökning misslyckades: ${error.message}</p>`;
+    }
+}
+
+// Hjälpfunktion för att välja en användare från listan
+function selectUser(handle) {
+    document.getElementById('ap-input').value = handle;
+    // Kör den vanliga hämtningen direkt
+    startLookup();
+}
     </script>
 </body>
 </html>
+
 
 
