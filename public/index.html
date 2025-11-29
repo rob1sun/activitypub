@@ -7,7 +7,6 @@
     <style>
         /* --- 1. DESIGN SYSTEM & VARIABLER --- */
         :root {
-            /* Light Mode (Default) */
             --bg-body: #f8f9fa;
             --bg-card: #ffffff;
             --bg-nav: rgba(255, 255, 255, 0.85);
@@ -16,24 +15,18 @@
             --text-muted: #6b7280;
             --border: #e5e7eb;
             --shadow: 0 4px 20px rgba(0,0,0,0.04);
-            
-            /* Accents */
-            --primary: #6366f1; /* Indigo */
+            --primary: #6366f1;
             --primary-hover: #4f46e5;
             --success: #10b981;
             --success-bg: #d1fae5;
             --danger: #ef4444;
             --danger-bg: #fee2e2;
-            
-            /* Layout */
             --radius: 16px;
-            --nav-height: 70px;
             --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        /* Dark Mode Override */
         [data-theme="dark"] {
-            --bg-body: #0f172a; /* Deep Slate */
+            --bg-body: #0f172a;
             --bg-card: #1e293b;
             --bg-nav: rgba(30, 41, 59, 0.85);
             --bg-input: #334155;
@@ -43,250 +36,98 @@
             --shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
 
-        /* --- 2. BASE STYLES --- */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-body);
             color: var(--text-main);
-            padding-bottom: 100px; /* Space for content */
+            padding-bottom: 100px;
             transition: background-color 0.3s ease, color 0.3s ease;
-            -webkit-font-smoothing: antialiased;
         }
-
         a { color: var(--primary); text-decoration: none; }
         
-        /* Layout Container */
-        .app-container {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .app-container { max-width: 720px; margin: 0 auto; padding: 20px; }
 
-        /* --- 3. HEADER & NAV --- */
-        .app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 10px 0;
-        }
-
-        .brand {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-        }
-
-        .theme-toggle {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            transition: var(--transition);
-        }
+        /* HEADER */
+        .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 0; }
+        .brand { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); }
         .theme-toggle:hover { transform: scale(1.05); box-shadow: var(--shadow); }
 
-        /* Sticky Navigation Bar */
-        .nav-container {
-            position: sticky;
-            top: 20px;
-            z-index: 100;
-            background: var(--bg-nav);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
-            border-radius: 100px;
-            padding: 8px;
-            display: flex;
-            justify-content: space-between;
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
-        }
-
-        .nav-btn {
-            flex: 1;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            padding: 12px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
+        /* NAV */
+        .nav-container { position: sticky; top: 20px; z-index: 100; background: var(--bg-nav); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 100px; padding: 8px; display: flex; justify-content: space-between; box-shadow: var(--shadow); margin-bottom: 30px; }
+        .nav-btn { flex: 1; border: none; background: transparent; color: var(--text-muted); padding: 12px; border-radius: 50px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px; }
         .nav-btn:hover { color: var(--text-main); background: rgba(0,0,0,0.03); }
-        [data-theme="dark"] .nav-btn:hover { background: rgba(255,255,255,0.05); }
-
-        .nav-btn.active {
-            background: var(--bg-card);
-            color: var(--primary);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
+        .nav-btn.active { background: var(--bg-card); color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .nav-icon { width: 20px; height: 20px; fill: currentColor; }
 
-        /* --- 4. CARDS & INPUTS --- */
-        .card {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            padding: 24px;
-            margin-bottom: 20px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow);
-            transition: var(--transition);
-        }
-        .card:hover { transform: translateY(-2px); }
-
-        .search-hero {
-            position: relative;
-            margin-bottom: 24px;
-        }
-
-        .search-input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        input {
-            width: 100%;
-            padding: 16px 16px 16px 50px; /* Space for icon */
-            font-size: 1.05rem;
-            background: var(--bg-input);
-            border: 2px solid transparent;
-            border-radius: var(--radius);
-            color: var(--text-main);
-            outline: none;
-            transition: var(--transition);
-        }
+        /* INPUTS */
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .search-hero { position: relative; margin-bottom: 24px; }
+        .search-input-wrapper { position: relative; display: flex; align-items: center; }
+        input { width: 100%; padding: 16px 16px 16px 50px; font-size: 1.05rem; background: var(--bg-input); border: 2px solid transparent; border-radius: var(--radius); color: var(--text-main); outline: none; transition: var(--transition); }
         input:focus { border-color: var(--primary); background: var(--bg-card); }
-
-        .search-icon-absolute {
-            position: absolute; left: 18px; color: var(--text-muted);
-            width: 20px; height: 20px; pointer-events: none;
-        }
-
-        .search-btn-absolute {
-            position: absolute; right: 8px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        .search-btn-absolute:hover { background: var(--primary-hover); }
-
-        .mode-toggle {
-            text-align: center; margin-top: 12px; font-size: 0.85rem;
-            color: var(--text-muted); cursor: pointer;
-        }
+        .search-icon-absolute { position: absolute; left: 18px; color: var(--text-muted); width: 20px; height: 20px; pointer-events: none; }
+        .search-btn-absolute { position: absolute; right: 8px; background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+        .mode-toggle { text-align: center; margin-top: 12px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; }
         .mode-toggle:hover { color: var(--primary); text-decoration: underline; }
 
-        /* --- 5. GRID & USER LISTS --- */
-        .grid {
-            display: grid; gap: 16px;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            margin-top: 20px;
-        }
-
+        /* USER CARDS (NY LAYOUT) */
+        .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-top: 20px; }
+        
         .user-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 16px;
             display: flex;
-            align-items: center;
+            flex-direction: column; /* Stapla innehåll vertikalt */
             gap: 16px;
             transition: var(--transition);
         }
         
-        .user-avatar {
-            width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
-            border: 2px solid var(--border);
+        .user-card-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
+        .user-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); flex-shrink: 0; }
         .user-info { flex: 1; min-width: 0; }
         .user-name { font-weight: 700; font-size: 1rem; margin-bottom: 2px; }
         .user-handle { font-size: 0.85rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        .btn-sm {
-            padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
-            border: none; cursor: pointer; transition: var(--transition);
+        .card-actions { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; /* Två lika stora knappar */
+            gap: 10px; 
+            margin-top: auto; 
         }
+
+        .btn-sm { padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; transition: var(--transition); width: 100%; }
         .btn-view { background: var(--bg-input); color: var(--text-main); }
         .btn-view:hover { background: var(--border); }
-        
         .btn-follow { background: var(--primary); color: white; }
-        .btn-follow:hover { background: var(--primary-hover); transform: scale(1.05); }
         .btn-follow.following { background: var(--success-bg); color: var(--success); cursor: default; }
-
         .btn-unfollow { background: var(--danger-bg); color: var(--danger); }
-        .btn-unfollow:hover { background: #fee2e2; transform: scale(1.05); }
+        .btn-unfollow:hover { background: #fee2e2; }
 
-        /* --- 6. POST DESIGN --- */
-        .profile-header {
-            display: flex; align-items: center; gap: 20px;
-            margin-bottom: 30px; padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-        }
-        .profile-header h2 { font-size: 1.5rem; margin-bottom: 4px; }
-
-        .post-meta {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 12px; font-size: 0.85rem; color: var(--text-muted);
-        }
+        /* POSTS */
+        .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .post-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; color: var(--text-muted); }
         .post-author { font-weight: 700; color: var(--text-main); }
-
         .post-content { line-height: 1.6; font-size: 1rem; color: var(--text-main); }
-        .post-content img {
-            width: 100%; height: auto; border-radius: 12px; margin-top: 16px;
-            border: 1px solid var(--border);
-        }
-
-        /* Collapsed logic */
-        .post-content.collapsed {
-            max-height: 400px;
-            overflow: hidden;
-            mask-image: linear-gradient(180deg, black 60%, transparent);
-            -webkit-mask-image: linear-gradient(180deg, black 60%, transparent);
-        }
-
-        .read-more-btn {
-            width: 100%; background: var(--bg-input); color: var(--primary);
-            font-weight: 600; padding: 12px; border: none; border-radius: 0 0 12px 12px;
-            cursor: pointer; margin-top: -10px; transition: var(--transition);
-        }
-        .read-more-btn:hover { background: var(--border); }
-
-        /* Utils */
+        .post-content img { width: 100%; height: auto; border-radius: 12px; margin-top: 16px; border: 1px solid var(--border); }
+        .post-content.collapsed { max-height: 400px; overflow: hidden; mask-image: linear-gradient(180deg, black 60%, transparent); -webkit-mask-image: linear-gradient(180deg, black 60%, transparent); }
+        .read-more-btn { width: 100%; background: var(--bg-input); color: var(--primary); font-weight: 600; padding: 12px; border: none; border-radius: 0 0 12px 12px; cursor: pointer; margin-top: -10px; transition: var(--transition); }
+        
         .hidden { display: none !important; }
         .loading { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; }
         .error-box { background: var(--danger-bg); color: var(--danger); padding: 16px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
 
-        /* Responsive */
         @media (max-width: 600px) {
-            .nav-container { top: 10px; padding: 4px; }
-            .nav-btn span { display: none; } /* Hide text on small screens, show only icon */
+            .nav-btn span { display: none; }
             .nav-btn { padding: 14px; }
-            .user-card { flex-direction: column; align-items: flex-start; }
-            .user-avatar { width: 48px; height: 48px; }
-            .card-actions { width: 100%; flex-direction: row; justify-content: space-between; margin-top: 10px; }
         }
     </style>
 </head>
@@ -352,11 +193,10 @@
     </div>
 
     <script>
-        // --- TEMA HANTERING ---
+        // Init Themes
         function initTheme() {
             const saved = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
             if (saved === 'dark' || (!saved && prefersDark)) {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 updateThemeIcons(true);
@@ -375,28 +215,26 @@
         }
 
         function updateThemeIcons(isDark) {
-            if (isDark) {
-                document.getElementById('icon-sun').classList.remove('hidden');
-                document.getElementById('icon-moon').classList.add('hidden');
-            } else {
-                document.getElementById('icon-sun').classList.add('hidden');
-                document.getElementById('icon-moon').classList.remove('hidden');
-            }
+            document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
+            document.getElementById('icon-moon').classList.toggle('hidden', isDark);
         }
 
-        // --- CORE STATE ---
+        // --- CORE LOGIC ---
         let isSearchMode = true;
         let currentActor = null;
         let myFollows = [];
 
-        // STARTUP
         initTheme();
         fetch('/api/following').then(r => r.json()).then(data => myFollows = data).catch(() => {});
 
-        // --- NAVIGATION ---
+        // --- ENTER KEY LISTENER ---
+        document.getElementById('main-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') handleAction();
+        });
+
+        // Navigation
         function switchTab(tab) {
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            // Hitta rätt knapp baserat på index för enkelhet, eller onclick target
             const btns = document.querySelectorAll('.nav-btn');
             if(tab === 'search') btns[0].classList.add('active');
             if(tab === 'feed') btns[1].classList.add('active');
@@ -406,7 +244,7 @@
             document.getElementById('tab-' + tab).classList.remove('hidden');
         }
 
-        // --- 1. SÖK & LOGIK ---
+        // --- SEARCH ---
         function toggleSearchMode() {
             isSearchMode = !isSearchMode;
             const input = document.getElementById('main-input');
@@ -437,7 +275,7 @@
             const errorDiv = document.getElementById('error-msg');
             
             if (!query) return;
-            grid.innerHTML = '<div class="loading">Söker i Fediversum...</div>';
+            grid.innerHTML = '<div class="loading">Söker...</div>';
             grid.classList.remove('hidden');
             document.getElementById('profile-view').classList.add('hidden');
             errorDiv.classList.add('hidden');
@@ -459,12 +297,15 @@
                     if (!handle.includes('@')) handle += '@mastodon.social';
                     const isFollowing = myFollows.some(u => u.url === user.url || u.handle === handle);
 
+                    // NY STRUKTUR HÄR (Samma layout som "Följer")
                     html += `
                         <div class="user-card">
-                            <img class="user-avatar" src="${user.avatar}" alt="${user.username}">
-                            <div class="user-info">
-                                <div class="user-name">${user.display_name || user.username}</div>
-                                <div class="user-handle">@${handle}</div>
+                            <div class="user-card-top">
+                                <img class="user-avatar" src="${user.avatar}" alt="${user.username}">
+                                <div class="user-info">
+                                    <div class="user-name">${user.display_name || user.username}</div>
+                                    <div class="user-handle">@${handle}</div>
+                                </div>
                             </div>
                             <div class="card-actions">
                                 <button class="btn-sm btn-view" onclick="viewUser('${handle}')">Visa</button>
@@ -530,7 +371,7 @@
                     <div style="margin-top:8px;font-size:0.95rem;line-height:1.4;">${summary}</div>
                 </div>
                 <button class="btn-sm btn-follow ${isFollowing ? 'following' : ''}" 
-                    style="padding:10px 20px; font-size:0.9rem;"
+                    style="padding:10px 20px; font-size:0.9rem; width:auto; align-self:center;"
                     onclick="toggleFollowFromProfile('${url}', '${handle}', '${icon}', '${name}')">
                     ${isFollowing ? 'Följer' : 'Följ'}
                 </button>
@@ -543,7 +384,7 @@
             if (input) viewUser(input);
         }
 
-        // --- 2. FÖLJER LISTA ---
+        // --- FOLLOWING LIST ---
         async function loadFollowingList() {
             switchTab('following');
             const container = document.getElementById('following-list');
@@ -562,10 +403,12 @@
                 myFollows.forEach(user => {
                     html += `
                         <div class="user-card" id="card-${user.url}">
-                            <img class="user-avatar" src="${user.icon || ''}" alt="${user.name}">
-                            <div class="user-info">
-                                <div class="user-name">${user.name}</div>
-                                <div class="user-handle" title="${user.handle}">${user.handle}</div>
+                            <div class="user-card-top">
+                                <img class="user-avatar" src="${user.icon || ''}" alt="${user.name}">
+                                <div class="user-info">
+                                    <div class="user-name">${user.name}</div>
+                                    <div class="user-handle" title="${user.handle}">${user.handle}</div>
+                                </div>
                             </div>
                             <div class="card-actions">
                                 <button class="btn-sm btn-view" onclick="openProfile('${user.handle}')">Visa flöde</button>
@@ -592,32 +435,40 @@
         }
 
         function openProfile(handle) {
-            switchTab('search'); // Byt flik visuellt
+            switchTab('search');
             viewUser(handle);
         }
 
-        // --- 3. FLÖDE & POST RENDER ---
+        // --- FEED ---
         async function loadMyFeed() {
             switchTab('feed');
             const container = document.getElementById('feed-container');
             const status = document.getElementById('feed-status');
             container.innerHTML = '';
-            status.innerText = "Hämtar inställningar och flöde...";
+            status.innerText = "Hämtar flöde...";
             status.classList.remove('hidden');
 
             try {
-                // 1. Hämta inställning för max dagar (parallellt med att hämta vänner för snabbhet)
-                const [configRes, followsRes] = await Promise.all([
-                    fetch('/api/config'),
-                    fetch('/api/following')
-                ]);
+                // Fallback: Om /api/config falerar (returnerar HTML pga 404), använd 3 dagar som default
+                let maxDays = 3;
+                try {
+                    const configRes = await fetch('/api/config');
+                    // Kolla Content-Type för att se om vi fick JSON
+                    const contentType = configRes.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        const config = await configRes.json();
+                        if(config.maxDays) maxDays = config.maxDays;
+                    } else {
+                        console.warn("API config returnerade inte JSON, använder default.");
+                    }
+                } catch(e) { console.warn("Kunde inte hämta config, använder default."); }
 
-                const config = await configRes.json();
+                const followsRes = await fetch('/api/following');
                 const follows = await followsRes.json();
                 
-                // Räkna ut datumgränsen (i millisekunder)
+                // Datumgräns
                 const cutoffDate = new Date();
-                cutoffDate.setDate(cutoffDate.getDate() - config.maxDays);
+                cutoffDate.setDate(cutoffDate.getDate() - maxDays);
                 const cutoffTime = cutoffDate.getTime();
 
                 if (follows.length === 0) {
@@ -625,9 +476,8 @@
                     return;
                 }
 
-                status.innerText = `Hämtar inlägg från de senaste ${config.maxDays} dagarna...`;
+                status.innerText = `Hämtar inlägg (Senaste ${maxDays} dagarna)...`;
 
-                // 2. Hämta inlägg
                 const promises = follows.map(async (user) => {
                     try {
                         const actor = await proxyFetch(user.url);
@@ -636,22 +486,16 @@
                             if (data.first) data = await proxyFetch(typeof data.first === 'string' ? data.first : data.first.id);
                             
                             const items = data.orderedItems || data.items || [];
-                            
-                            // 3. FILTRERA HÄR: Ta bort inlägg som är för gamla direkt
-                            return items
-                                .filter(item => {
-                                    const postDate = new Date((item.object || item).published).getTime();
-                                    return postDate > cutoffTime;
-                                })
-                                .map(i => ({...i, author: user.name}));
+                            return items.filter(item => {
+                                const postDate = new Date((item.object || item).published).getTime();
+                                return postDate > cutoffTime;
+                            }).map(i => ({...i, author: user.name}));
                         }
                     } catch(e) {}
                     return [];
                 });
-
-                const results = await Promise.all(promises);
                 
-                // Sortera
+                const results = await Promise.all(promises);
                 const allPosts = results.flat().sort((a,b) => new Date((b.object||b).published) - new Date((a.object||a).published));
                 
                 status.classList.add('hidden');
@@ -664,10 +508,10 @@
                 let html = '';
                 allPosts.forEach(item => { html += createPostHTML(item); });
                 container.innerHTML = html;
-
             } catch(e) { status.innerText = "Fel: " + e.message; }
         }
 
+        // --- RENDER HELPERS ---
         function createPostHTML(item) {
             const post = item.type === 'Create' ? item.object : item;
             if(!post.content) return '';
@@ -720,7 +564,6 @@
             if (html) container.innerHTML = html;
         }
 
-        // --- UTILS (ActivityPub / Networking) ---
         async function quickFollow(url, handle, icon, name, btnId) {
             const btn = document.getElementById(`btn-${btnId}`);
             btn.innerText = "...";
@@ -756,4 +599,3 @@
     </script>
 </body>
 </html>
-
