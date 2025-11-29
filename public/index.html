@@ -297,7 +297,53 @@
 
             container.innerHTML = html;
         }
+        async function discoverUsers() {
+    const container = document.getElementById('profile-container');
+    const postsDiv = document.getElementById('posts-container');
+    const titleDiv = document.getElementById('timeline-title');
+    
+    // Rensa tidigare resultat
+    postsDiv.innerHTML = '';
+    titleDiv.classList.add('hidden');
+    container.innerHTML = '<div class="loading">Hämtar katalogen från mastodon.social...</div>';
+
+    try {
+        // Vi lånar katalogen från en stor instans (mastodon.social)
+        // order=new visar de nyaste användarna, eller order=active för de mest aktiva
+        const directoryUrl = 'https://mastodon.social/api/v1/directory?order=active&limit=10';
+        
+        // Använd din befintliga proxy!
+        const users = await proxyFetch(directoryUrl);
+
+        if (!Array.isArray(users)) {
+            throw new Error("Kunde inte hämta katalogen.");
+        }
+
+        let html = '<h2>Upptäck profiler</h2><div style="display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">';
+
+        users.forEach(user => {
+            // Mastodons API returnerar 'acct' (handle) och 'url'
+            const handle = user.acct.includes('@') ? user.acct : `${user.acct}@mastodon.social`;
+            
+            html += `
+                <div style="border:1px solid #ddd; padding:10px; border-radius:8px; text-align:center;">
+                    <img src="${user.avatar}" style="width:50px;height:50px;border-radius:50%;margin-bottom:5px;">
+                    <div style="font-weight:bold;">${user.display_name || user.username}</div>
+                    <div style="font-size:0.8rem; color:#666; overflow:hidden; text-overflow:ellipsis;">@${handle}</div>
+                    <button onclick="document.getElementById('ap-input').value='${handle}'; startLookup();" style="margin-top:5px; font-size:0.8rem; padding:5px 10px;">Visa</button>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+
+    } catch (error) {
+        container.innerHTML = `<p class="error">Kunde inte ladda katalogen: ${error.message}</p>`;
+    }
+}
     </script>
 </body>
 </html>
+
 
