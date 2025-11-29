@@ -6,7 +6,7 @@
     <title>Min ActivityPub Läsare</title>
     <style>
         :root { --bg: #f0f2f5; --card: #fff; --blue: #1877f2; --green: #42b72a; --text: #1c1e21; --gray: #65676b; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: 0 auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.5; }
         
         /* Navigation */
         .nav { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
@@ -43,7 +43,32 @@
         .profile-header img { width: 80px; height: 80px; border-radius: 50%; }
         .post { background: var(--card); padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .post-meta { font-size: 0.85rem; color: var(--gray); margin-bottom: 10px; }
+        
+        /* NYTT: Hantering av långa inlägg och bilder */
         .post-content img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; }
+        
+        .post-content.collapsed {
+            max-height: 300px; /* Maxhöjd innan knappen visas */
+            overflow: hidden;
+            position: relative;
+            /* En snygg toning i botten */
+            mask-image: linear-gradient(180deg, #000 60%, transparent);
+            -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent);
+        }
+
+        .read-more-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: #f7f8fa;
+            border: none;
+            color: var(--blue);
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 0 0 8px 8px;
+            margin-top: -5px;
+        }
+        .read-more-btn:hover { background: #eef0f3; }
 
         .hidden { display: none; }
         .loading { text-align: center; padding: 20px; color: var(--gray); font-style: italic; }
@@ -84,16 +109,14 @@
 
     <script>
         // --- State ---
-        let isSearchMode = true; // true = Sök, false = Exakt adress
+        let isSearchMode = true;
         let currentActor = null;
-        let myFollows = []; // Cache för vilka vi följer
+        let myFollows = [];
 
         // --- Init ---
-        // Ladda följare direkt så vi vet vem som ska ha grön knapp
         fetch('/api/following').then(r => r.json()).then(data => myFollows = data).catch(() => {});
 
-        // --- UI Logic ---
-
+        // --- UI & Routing ---
         function switchTab(tab) {
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
@@ -112,7 +135,6 @@
             const text = document.getElementById('mode-text');
             const results = document.getElementById('search-results');
             
-            // Rensa UI
             results.innerHTML = '';
             results.classList.add('hidden');
             document.getElementById('profile-view').classList.add('hidden');
@@ -148,7 +170,6 @@
             errorDiv.classList.add('hidden');
 
             try {
-                // Sök via mastodon.social proxy
                 const searchUrl = `https://mastodon.social/api/v2/search?q=${encodeURIComponent(query)}&type=accounts&limit=8`;
                 const data = await proxyFetch(searchUrl);
 
@@ -158,15 +179,12 @@
                 }
 
                 let html = '';
-                // Uppdatera vår cache av följare för säkerhets skull
                 try { myFollows = await (await fetch('/api/following')).json(); } catch(e){}
 
                 data.accounts.forEach(user => {
-                    // Normalisera handle
                     let handle = user.acct;
                     if (!handle.includes('@')) handle += '@mastodon.social';
 
-                    // Kolla om vi redan följer (jämför URL eller handle)
                     const isFollowing = myFollows.some(u => u.url === user.url || u.handle === handle);
 
                     html += `
@@ -195,9 +213,8 @@
             }
         }
 
-        // --- 2. VISA ANVÄNDARE (View) ---
+        // --- 2. VISA ANVÄNDARE ---
         async function viewUser(handle) {
-            // Rensa search grid om vi är i "Hämta"-läge, men behåll om vi kom från sök
             if (!isSearchMode) document.getElementById('search-results').classList.add('hidden');
             
             const profileView = document.getElementById('profile-view');
@@ -211,16 +228,11 @@
             errorDiv.classList.add('hidden');
 
             try {
-                // 1. Resolve handle till URL
                 const profileUrl = await resolveHandle(handle);
-                
-                // 2. Hämta Actor JSON
                 currentActor = await proxyFetch(profileUrl);
                 
-                // 3. Rendera Header
                 await renderProfileHeader(currentActor, handle);
 
-                // 4. Hämta Outbox
                 if (currentActor.outbox) {
                     profilePosts.innerHTML = '<div class="loading">Hämtar inlägg...</div>';
                     await loadOutbox(currentActor.outbox, 'profile-posts');
@@ -237,7 +249,6 @@
         }
 
         async function renderProfileHeader(actor, handle) {
-            // Uppdatera följ-status
             try { myFollows = await (await fetch('/api/following')).json(); } catch(e){}
             const isFollowing = myFollows.some(u => u.url === (actor.id || actor.url));
             
@@ -268,109 +279,7 @@
             viewUser(input);
         }
 
-        // --- 4. FÖLJA LOGIK ---
-
-        // Alternativ A: Följ från söklistan (Quick Follow)
-        async function quickFollow(url, handle, icon, name, btnId) {
-            const btn = document.getElementById(`btn-${btnId}`);
-            btn.innerText = "...";
-            
-            try {
-                await fetch('/api/following', {
-                    method: 'POST',
-                    body: JSON.stringify({ url, handle, icon, name })
-                });
-                
-                // Uppdatera UI
-                btn.innerText = "Följer";
-                btn.classList.add('following');
-                btn.classList.remove('btn-follow');
-                
-                // Uppdatera cache
-                myFollows.push({ url, handle });
-            } catch (e) {
-                alert("Kunde inte följa: " + e.message);
-                btn.innerText = "Följ";
-            }
-        }
-
-        // Alternativ B: Följ inifrån profilen (Toggle)
-        async function toggleFollowFromProfile(url, handle, icon, name) {
-            const isFollowing = myFollows.some(u => u.url === url);
-            const method = isFollowing ? 'DELETE' : 'POST';
-            
-            await fetch('/api/following', {
-                method: method,
-                body: JSON.stringify({ url, handle, icon, name })
-            });
-
-            // Ladda om headern
-            renderProfileHeader(currentActor, handle);
-        }
-
-        // --- HJÄLPFUNKTIONER ---
-
-        async function proxyFetch(url) {
-            const res = await fetch(`/api/lookup?target=${encodeURIComponent(url)}`);
-            if (!res.ok) {
-                const json = await res.json().catch(()=>{});
-                throw new Error(json?.error || `HTTP ${res.status}`);
-            }
-            return await res.json();
-        }
-
-        async function resolveHandle(handle) {
-            if (handle.startsWith('http')) return handle;
-            
-            // Städa och säkerställ user@domain
-            let clean = handle.trim().replace(/^@/, '');
-            if (!clean.includes('@')) throw new Error("Ange formatet user@domain.com");
-            
-            const [u, d] = clean.split('@');
-            const webfinger = `https://${d}/.well-known/webfinger?resource=acct:${clean}`;
-            
-            const data = await proxyFetch(webfinger);
-            const link = data.links.find(l => l.type && l.type.includes('activity+json'));
-            
-            if (!link) throw new Error("Ingen ActivityPub-profil hittades för denna adress.");
-            return link.href;
-        }
-
-        async function loadOutbox(url, containerId) {
-            const container = document.getElementById(containerId);
-            
-            let data = await proxyFetch(url);
-            if (data.first) data = await proxyFetch(typeof data.first === 'string' ? data.first : data.first.id);
-            
-            const items = data.orderedItems || data.items || [];
-            
-            let html = '';
-            items.forEach(item => {
-                const post = item.type === 'Create' ? item.object : item;
-                if (!post.content) return;
-                
-                let media = '';
-                if(post.attachment) {
-                    post.attachment.forEach(att => {
-                        if(att.mediaType?.startsWith('image')) media += `<img src="${att.url}">`;
-                    });
-                }
-
-                html += `
-                    <div class="post">
-                        <div class="post-meta">
-                            <strong>${item.author || ''}</strong> • ${new Date(post.published).toLocaleString()}
-                        </div>
-                        <div class="post-content">${post.content} ${media}</div>
-                        <a href="${post.url}" target="_blank" style="font-size:0.8rem;color:#666">Länk</a>
-                    </div>
-                `;
-            });
-            
-            if (html) container.innerHTML = html;
-        }
-
-        // --- FLÖDE ---
+        // --- 4. FLÖDE ---
         async function loadMyFeed() {
             switchTab('feed');
             const container = document.getElementById('feed-container');
@@ -388,7 +297,6 @@
 
                 const promises = follows.map(async (user) => {
                     try {
-                        // Optimering: Om vi sparade outbox-url i KV skulle vi slippa detta anrop
                         const actor = await proxyFetch(user.url);
                         if (actor.outbox) {
                             let data = await proxyFetch(actor.outbox);
@@ -406,20 +314,110 @@
                 
                 let html = '';
                 allPosts.forEach(item => {
-                    const post = item.type === 'Create' ? item.object : item;
-                    if(!post.content) return;
-                    let media = '';
-                    if(post.attachment) post.attachment.forEach(att => { if(att.mediaType?.startsWith('image')) media += `<img src="${att.url}">`; });
-
-                    html += `
-                    <div class="post">
-                        <div class="post-meta"><strong>${item.author}</strong> • ${new Date(post.published).toLocaleString()}</div>
-                        <div class="post-content">${post.content} ${media}</div>
-                    </div>`;
+                    html += createPostHTML(item);
                 });
                 container.innerHTML = html;
 
             } catch(e) { status.innerText = "Fel: " + e.message; }
+        }
+
+        // --- GEMENSAM POST RENDERARE (Fixar Länkar & Maxhöjd) ---
+        function createPostHTML(item) {
+            const post = item.type === 'Create' ? item.object : item;
+            if(!post.content) return '';
+
+            // 1. Tvinga länkar till ny flik
+            let content = post.content.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
+            
+            // 2. Hantera media (bilder)
+            let mediaHtml = '';
+            if(post.attachment) {
+                post.attachment.forEach(att => {
+                    if(att.mediaType?.startsWith('image')) mediaHtml += `<img src="${att.url}">`;
+                });
+            }
+
+            // 3. Kolla längd för "Visa mer"
+            // Vi gissar att över 500 tecken är ett "långt" inlägg
+            const isLong = content.length > 500;
+            const contentClass = isLong ? 'post-content collapsed' : 'post-content';
+            const buttonHtml = isLong ? `<button class="read-more-btn" onclick="toggleReadMore(this)">Visa hela inlägget</button>` : '';
+
+            return `
+                <div class="post">
+                    <div class="post-meta">
+                        <strong>${item.author || ''}</strong> • ${new Date(post.published).toLocaleString()}
+                    </div>
+                    <div class="${contentClass}">
+                        ${content} ${mediaHtml}
+                    </div>
+                    ${buttonHtml}
+                    <div style="margin-top:10px;">
+                         <a href="${post.url}" target="_blank" style="font-size:0.8rem;color:#666">Länk till original</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleReadMore(btn) {
+            const content = btn.previousElementSibling;
+            content.classList.remove('collapsed');
+            content.style.maxHeight = 'none';
+            content.style.maskImage = 'none';
+            content.style.webkitMaskImage = 'none';
+            btn.remove();
+        }
+
+        // --- HELPERS (Outbox Load) ---
+        async function loadOutbox(url, containerId) {
+            const container = document.getElementById(containerId);
+            
+            let data = await proxyFetch(url);
+            if (data.first) data = await proxyFetch(typeof data.first === 'string' ? data.first : data.first.id);
+            
+            const items = data.orderedItems || data.items || [];
+            
+            let html = '';
+            items.forEach(item => {
+                html += createPostHTML({...item, author: currentActor.name}); // Lägg till författare för kontext
+            });
+            
+            if (html) container.innerHTML = html;
+        }
+
+        // --- FÖLJA FUNKTIONER ---
+        async function quickFollow(url, handle, icon, name, btnId) {
+            const btn = document.getElementById(`btn-${btnId}`);
+            btn.innerText = "...";
+            try {
+                await fetch('/api/following', { method: 'POST', body: JSON.stringify({ url, handle, icon, name }) });
+                btn.innerText = "Följer"; btn.classList.add('following'); myFollows.push({ url, handle });
+            } catch (e) { alert("Fel: " + e.message); btn.innerText = "Följ"; }
+        }
+
+        async function toggleFollowFromProfile(url, handle, icon, name) {
+            const isFollowing = myFollows.some(u => u.url === url);
+            const method = isFollowing ? 'DELETE' : 'POST';
+            await fetch('/api/following', { method, body: JSON.stringify({ url, handle, icon, name }) });
+            renderProfileHeader(currentActor, handle);
+        }
+
+        // --- NETWORK HELPERS ---
+        async function proxyFetch(url) {
+            const res = await fetch(`/api/lookup?target=${encodeURIComponent(url)}`);
+            if (!res.ok) { const j = await res.json().catch(()=>{}); throw new Error(j?.error || `HTTP ${res.status}`); }
+            return await res.json();
+        }
+
+        async function resolveHandle(handle) {
+            if (handle.startsWith('http')) return handle;
+            let clean = handle.trim().replace(/^@/, '');
+            if (!clean.includes('@')) throw new Error("Ange formatet user@domain.com");
+            const [u, d] = clean.split('@');
+            const data = await proxyFetch(`https://${d}/.well-known/webfinger?resource=acct:${clean}`);
+            const link = data.links.find(l => l.type && l.type.includes('activity+json'));
+            if (!link) throw new Error("Ingen ActivityPub-profil hittades.");
+            return link.href;
         }
     </script>
 </body>
