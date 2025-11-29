@@ -5,194 +5,297 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ActivityPub Läsare</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 2rem; }
-        input { flex-grow: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px 20px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px; }
-        button:hover { background: #555; }
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #1c1e21;
+            --secondary-text: #65676b;
+            --accent-color: #1877f2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+        }
+
+        /* Input Section */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover { background-color: #166fe5; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* Profile Card */
+        .profile-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .profile-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #eee;
+        }
+
+        .profile-info h2 { margin: 0 0 5px 0; font-size: 1.2rem; }
+        .profile-summary { font-size: 0.95rem; color: var(--text-color); margin-top: 10px; }
+
+        /* Timeline / Posts */
+        .timeline-header { margin: 20px 0 10px; font-weight: bold; color: var(--secondary-text); }
         
-        .profile-header { display: flex; align-items: center; gap: 1rem; background: #f9f9f9; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; }
-        .profile-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
-        
-        .post { border-bottom: 1px solid #eee; padding: 1.5rem 0; }
-        .post-date { font-size: 0.8rem; color: #888; margin-bottom: 0.5rem; display: block; }
-        .post-content { overflow-wrap: break-word; }
-        /* Mastodon content is often HTML, let's style basic paragraphs */
-        .post-content p { margin-bottom: 0.5rem; }
-        .loading { color: #666; font-style: italic; }
+        .post {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .post-meta {
+            font-size: 0.85rem;
+            color: var(--secondary-text);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .post-content { line-height: 1.5; overflow-wrap: break-word; }
+        .post-content p { margin-top: 0; }
+        .post-content img { max-width: 100%; height: auto; border-radius: 4px; margin-top: 10px; }
+        .post-link { text-decoration: none; color: var(--secondary-text); }
+        .post-link:hover { text-decoration: underline; }
+
+        .error { background: #ffebe8; color: #cc0000; padding: 10px; border-radius: 6px; margin-bottom: 20px; }
+        .loading { text-align: center; color: var(--secondary-text); padding: 20px; font-style: italic; }
+        .hidden { display: none; }
+
     </style>
 </head>
 <body>
 
-    <h1>ActivityPub Läsare</h1>
-    
-    <div class="input-group">
-        <input type="text" id="ap-url" placeholder="https://mastodon.social/users/Gargron" value="https://mastodon.social/users/Gargron" />
-        <button onclick="startLookup()">Hämta</button>
+    <div class="container">
+        <h1>ActivityPub Läsare</h1>
+        
+        <div class="search-box">
+            <input type="text" id="ap-input" placeholder="Användare@domän (t.ex. Gargron@mastodon.social)" />
+            <button id="search-btn" onclick="startLookup()">Hämta</button>
+        </div>
+
+        <div id="error-msg" class="error hidden"></div>
+
+        <div id="profile-container"></div>
+        
+        <div id="timeline-title" class="timeline-header hidden">Tidslinje</div>
+        <div id="posts-container"></div>
     </div>
 
-    <div id="profile-container"></div>
-    <h2>Tidslinje (Outbox)</h2>
-    <div id="posts-container"></div>
-
     <script>
-        // Hjälpfunktion för att anropa vår Cloudflare-proxy
-        async function proxyFetch(targetUrl) {
-            const response = await fetch(`/api/lookup?target=${encodeURIComponent(targetUrl)}`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
-        }
+        const API_ENDPOINT = '/api/lookup';
 
+        // Lyssna på Enter-tangenten i inputfältet
+        document.getElementById('ap-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') startLookup();
+        });
+
+        // Huvudfunktion
         async function startLookup() {
-            const inputUrl = document.getElementById('ap-url').value;
+            const input = document.getElementById('ap-input').value.trim();
             const profileDiv = document.getElementById('profile-container');
             const postsDiv = document.getElementById('posts-container');
-            
-            if (!inputUrl) return;
+            const errorDiv = document.getElementById('error-msg');
+            const titleDiv = document.getElementById('timeline-title');
+            const btn = document.getElementById('search-btn');
 
-            profileDiv.innerHTML = '<div class="loading">Hämtar profil...</div>';
-            postsDiv.innerHTML = '';
+            if (!input) return;
+
+            // Återställ UI
+            profileDiv.innerHTML = '';
+            postsDiv.innerHTML = '<div class="loading">Laddar...</div>';
+            errorDiv.classList.add('hidden');
+            titleDiv.classList.add('hidden');
+            btn.disabled = true;
 
             try {
-                // 1. Hämta profilen (Actor)
-                const actor = await proxyFetch(inputUrl);
+                // 1. WebFinger / URL hantering
+                const profileUrl = await resolveHandle(input);
+                console.log("Hittad URL:", profileUrl);
+
+                // 2. Hämta Profil (Actor)
+                const actor = await proxyFetch(profileUrl);
                 renderProfile(actor);
 
-                // 2. Hitta Outbox och hämta den
+                // 3. Hämta Outbox (Inlägg)
                 if (actor.outbox) {
-                    postsDiv.innerHTML = '<div class="loading">Hämtar inlägg från outbox...</div>';
+                    titleDiv.classList.remove('hidden');
                     await loadOutbox(actor.outbox);
                 } else {
-                    postsDiv.innerHTML = 'Ingen outbox hittades.';
+                    postsDiv.innerHTML = '<div class="loading">Ingen outbox hittades.</div>';
                 }
 
             } catch (error) {
-                profileDiv.innerHTML = `<p style="color:red">Fel: ${error.message}</p>`;
+                console.error(error);
+                errorDiv.textContent = `Fel: ${error.message}`;
+                errorDiv.classList.remove('hidden');
+                postsDiv.innerHTML = '';
+            } finally {
+                btn.disabled = false;
             }
+        }
+
+        // --- Hjälpfunktioner ---
+
+        async function proxyFetch(targetUrl) {
+            const response = await fetch(`${API_ENDPOINT}?target=${encodeURIComponent(targetUrl)}`);
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        async function resolveHandle(handle) {
+            let cleanHandle = handle;
+            if (cleanHandle.startsWith('@')) cleanHandle = cleanHandle.substring(1);
+
+            // Om det redan är en URL
+            if (cleanHandle.startsWith('http')) return cleanHandle;
+
+            // Validera format user@domain
+            const parts = cleanHandle.split('@');
+            if (parts.length !== 2) throw new Error("Formatet ska vara user@domain.com eller en URL.");
+
+            const [user, domain] = parts;
+            const webfingerUrl = `https://${domain}/.well-known/webfinger?resource=acct:${cleanHandle}`;
+            
+            const data = await proxyFetch(webfingerUrl);
+            
+            const link = data.links.find(l => 
+                l.rel === 'self' && 
+                (l.type.includes('activity+json') || l.type.includes('ld+json'))
+            );
+
+            if (!link || !link.href) throw new Error("Kunde inte hitta profil via WebFinger.");
+            
+            return link.href;
         }
 
         function renderProfile(data) {
             const container = document.getElementById('profile-container');
-            let imgHtml = '';
-            
-            // Hantera bild (Icon)
-            if (data.icon && data.icon.url) {
-                imgHtml = `<img src="${data.icon.url}" class="profile-img" />`;
-            }
+            const iconUrl = data.icon?.url || ''; 
+            const name = data.name || data.preferredUsername || 'Okänd';
+            const summary = data.summary || 'Ingen beskrivning.';
 
             container.innerHTML = `
-                <div class="profile-header">
-                    ${imgHtml}
-                    <div>
-                        <h3>${data.name || 'Namnlös'}</h3>
-                        <div>${data.summary || ''}</div>
+                <div class="profile-card">
+                    ${iconUrl ? `<img src="${iconUrl}" class="profile-img" alt="${name}">` : ''}
+                    <div class="profile-info">
+                        <h2>${name}</h2>
+                        <div class="profile-summary">${summary}</div>
                     </div>
                 </div>
             `;
         }
 
         async function loadOutbox(outboxUrl) {
-            try {
-                // 3. Hämta själva outbox-objektet
-                let collection = await proxyFetch(outboxUrl);
-
-                // VIKTIGT: Outboxen är ofta bara ett skal. Vi måste ofta hämta "first" (första sidan)
-                // för att få faktiska items.
-                if (collection.first) {
-                    console.log("Hämtar första sidan:", collection.first);
-                    // Ibland är 'first' ett objekt, ibland en sträng (URL)
-                    const nextUrl = typeof collection.first === 'string' ? collection.first : collection.first.id || collection.first;
-                    
-                    // Hämta sidan
-                    collection = await proxyFetch(nextUrl);
-                }
-
-                // ActivityPub använder 'orderedItems' eller 'items'
-                const items = collection.orderedItems || collection.items || [];
-                renderPosts(items);
-
-            } catch (err) {
-                document.getElementById('posts-container').innerHTML = `Kunde inte ladda inlägg: ${err.message}`;
-            }
-        }
-
-        function renderPosts(items) {
             const container = document.getElementById('posts-container');
             
+            // Hämta outbox-roten
+            let collection = await proxyFetch(outboxUrl);
+
+            // Navigera till första sidan om den finns
+            if (collection.first) {
+                const nextUrl = typeof collection.first === 'string' ? collection.first : collection.first.id;
+                collection = await proxyFetch(nextUrl);
+            }
+
+            const items = collection.orderedItems || collection.items || [];
+            
             if (items.length === 0) {
-                container.innerHTML = "Inga inlägg hittades.";
+                container.innerHTML = '<div class="loading">Inga inlägg hittades.</div>';
                 return;
             }
 
             let html = '';
-
             items.forEach(item => {
-                // I outboxen är varje item oftast en aktivitet (t.ex. "Create").
-                // Det faktiska inlägget ligger i 'object'.
+                // Hantera både "Create"-aktiviteter och råa objekt
                 const postObject = item.type === 'Create' ? item.object : item;
+                
+                // Vi vill helst bara visa Note (inlägg) eller Article
+                if (!postObject.content) return;
 
-                // Vi visar bara om det finns textinnehåll (content)
-                if (postObject.content) {
-                    const date = new Date(postObject.published).toLocaleString();
-                    html += `
-                        <div class="post">
-                            <span class="post-date">${date}</span>
-                            <div class="post-content">${postObject.content}</div>
-                            <a href="${postObject.url || '#'}" target="_blank" style="font-size:0.8rem">Länk till original</a>
-                        </div>
-                    `;
+                const date = new Date(postObject.published).toLocaleString();
+                const link = postObject.url || item.id || '#';
+
+                // Hantera bilder i inlägg (Attachment)
+                let mediaHtml = '';
+                if (postObject.attachment && Array.isArray(postObject.attachment)) {
+                    postObject.attachment.forEach(att => {
+                        if (att.mediaType && att.mediaType.startsWith('image') && att.url) {
+                            mediaHtml += `<img src="${att.url}" loading="lazy" />`;
+                        }
+                    });
                 }
+
+                html += `
+                    <div class="post">
+                        <div class="post-meta">
+                            <span>${date}</span>
+                            <a href="${link}" target="_blank" class="post-link">Original</a>
+                        </div>
+                        <div class="post-content">
+                            ${postObject.content}
+                            ${mediaHtml}
+                        </div>
+                    </div>
+                `;
             });
 
             container.innerHTML = html;
         }
-        // Funktion som omvandlar "user@domain" till en ActivityPub URL via WebFinger
-async function resolveHandle(handle) {
-    // 1. Städa upp input (ta bort inledande @ om det finns)
-    let cleanHandle = handle.trim();
-    if (cleanHandle.startsWith('@')) {
-        cleanHandle = cleanHandle.substring(1);
-    }
-
-    // 2. Dela upp i användare och domän
-    // Förväntar format: user@domain.com
-    const parts = cleanHandle.split('@');
-    
-    // Om det redan är en vanlig URL (börjar med http), gör inget
-    if (cleanHandle.startsWith('http')) {
-        return cleanHandle;
-    }
-
-    if (parts.length !== 2) {
-        throw new Error("Ogiltigt format. Använd URL eller formatet user@domain.com");
-    }
-
-    const [username, domain] = parts;
-
-    // 3. Bygg WebFinger-URL:en
-    // Standard: https://DOMÄN/.well-known/webfinger?resource=acct:USER@DOMÄN
-    const webfingerUrl = `https://${domain}/.well-known/webfinger?resource=acct:${cleanHandle}`;
-    
-    console.log("Kör WebFinger mot:", webfingerUrl);
-
-    // 4. Hämta via vår proxy
-    const data = await proxyFetch(webfingerUrl);
-
-    // 5. Hitta länken till profilen
-    // Vi letar efter en länk med rel="self" och rätt typ
-    const link = data.links.find(l => 
-        l.rel === 'self' && 
-        (l.type === 'application/activity+json' || 
-         l.type === 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
-    );
-
-    if (!link || !link.href) {
-        throw new Error("Kunde inte hitta ActivityPub-profil via WebFinger.");
-    }
-
-    return link.href; // Detta är URL:en vi ska använda (t.ex. https://mastodon.social/users/Gargron)
-}
     </script>
 </body>
 </html>
-
