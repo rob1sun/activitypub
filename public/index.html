@@ -146,6 +146,53 @@
 
             container.innerHTML = html;
         }
+        // Funktion som omvandlar "user@domain" till en ActivityPub URL via WebFinger
+async function resolveHandle(handle) {
+    // 1. Städa upp input (ta bort inledande @ om det finns)
+    let cleanHandle = handle.trim();
+    if (cleanHandle.startsWith('@')) {
+        cleanHandle = cleanHandle.substring(1);
+    }
+
+    // 2. Dela upp i användare och domän
+    // Förväntar format: user@domain.com
+    const parts = cleanHandle.split('@');
+    
+    // Om det redan är en vanlig URL (börjar med http), gör inget
+    if (cleanHandle.startsWith('http')) {
+        return cleanHandle;
+    }
+
+    if (parts.length !== 2) {
+        throw new Error("Ogiltigt format. Använd URL eller formatet user@domain.com");
+    }
+
+    const [username, domain] = parts;
+
+    // 3. Bygg WebFinger-URL:en
+    // Standard: https://DOMÄN/.well-known/webfinger?resource=acct:USER@DOMÄN
+    const webfingerUrl = `https://${domain}/.well-known/webfinger?resource=acct:${cleanHandle}`;
+    
+    console.log("Kör WebFinger mot:", webfingerUrl);
+
+    // 4. Hämta via vår proxy
+    const data = await proxyFetch(webfingerUrl);
+
+    // 5. Hitta länken till profilen
+    // Vi letar efter en länk med rel="self" och rätt typ
+    const link = data.links.find(l => 
+        l.rel === 'self' && 
+        (l.type === 'application/activity+json' || 
+         l.type === 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"')
+    );
+
+    if (!link || !link.href) {
+        throw new Error("Kunde inte hitta ActivityPub-profil via WebFinger.");
+    }
+
+    return link.href; // Detta är URL:en vi ska använda (t.ex. https://mastodon.social/users/Gargron)
+}
     </script>
 </body>
 </html>
+
