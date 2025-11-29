@@ -11,7 +11,7 @@
             --bg-modal-overlay: rgba(0, 0, 0, 0.6); --text-main: #111827; --text-muted: #6b7280;
             --border: #e5e7eb; --shadow: 0 4px 20px rgba(0,0,0,0.04);
             --primary: #6366f1; --primary-hover: #4f46e5;
-            --rss-color: #f97316; /* Orange för RSS */
+            --rss-color: #f97316;
             --success: #10b981; --success-bg: #d1fae5; --danger: #ef4444; --danger-bg: #fee2e2;
             --radius: 16px; --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
@@ -165,7 +165,6 @@
         
         initTheme();
         
-        // Starta med att hämta vänner och flöde. Hanterar eventuella config-fel.
         fetch('/api/following')
             .then(r => r.json())
             .then(d => { myFollows = d; loadMyFeed(); })
@@ -286,7 +285,7 @@
         }
 
 
-        // --- FEED LOGIC (FIXAD) ---
+        // --- FEED LOGIC ---
         async function loadMyFeed() {
             switchTab('feed');
             const container = document.getElementById('feed-container');
@@ -295,7 +294,6 @@
 
             try {
                 let maxDays = 3;
-                // Robust config hämtning (skydd mot "Unexpected token <")
                 try {
                     const res = await fetch('/api/config');
                     if(res.ok && res.headers.get("content-type")?.includes("json")) {
@@ -346,7 +344,7 @@
                                 }
 
                                 return {
-                                    originType: 'rss', // OBS: Vi använder originType för att inte krocka med AP
+                                    originType: 'rss', 
                                     author: source.name,
                                     sourceIcon: source.icon,
                                     url: link,
@@ -374,7 +372,7 @@
                                     ...i, 
                                     author: source.name, 
                                     sourceIcon: source.icon, 
-                                    originType: 'ap' // Vi använder originType istället för 'type' för att inte skriva över Mastodons data
+                                    originType: 'ap' 
                                 }));
                             }
                         }
@@ -399,10 +397,7 @@
 
         // --- RENDER POST ---
         function createPostHTML(item) {
-            // Här kollar vi originType istället för type för RSS
-            // Och vi behåller logiken för ActivityPub (Create/Announce)
             const post = item.originType === 'rss' ? item.object : (item.type === 'Create' ? item.object : item);
-            
             if(!post.content) return '';
 
             let content = post.content.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
@@ -553,7 +548,7 @@
             const html = `
                 <img class="user-avatar" style="width:80px;height:80px;" src="${actor.icon?.url||''}">
                 <div style="flex:1"><h2>${actor.name||'Namnlös'}</h2><div style="color:var(--text-muted);font-size:0.9rem;">${handle}</div><div style="margin-top:8px;">${actor.summary||''}</div>
-                <div style="margin-top:16px;"><button class="btn-sm btn-follow ${isFollowing?'following':''}" style="padding:10px 20px;width:auto;" onclick="quickFollow('${actor.id||actor.url}','${handle}','${actor.icon?.url}','${actor.name}','modal-btn','ap')">${isFollowing?'Följer':'Följ'}</button></div></div>`;
+                <div style="margin-top:16px;"><button id="btn-modal-btn" class="btn-sm btn-follow ${isFollowing?'following':''}" style="padding:10px 20px;width:auto;" onclick="quickFollow('${actor.id||actor.url}','${handle}','${actor.icon?.url}','${actor.name}','modal-btn','ap')">${isFollowing?'Följer':'Följ'}</button></div></div>`;
             document.getElementById('modal-profile-header').innerHTML = html;
         }
 
