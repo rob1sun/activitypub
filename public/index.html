@@ -602,33 +602,69 @@
             const container = document.getElementById('feed-container');
             const status = document.getElementById('feed-status');
             container.innerHTML = '';
-            status.innerText = "Laddar flöde...";
+            status.innerText = "Hämtar inställningar och flöde...";
             status.classList.remove('hidden');
 
             try {
-                const follows = await (await fetch('/api/following')).json();
+                // 1. Hämta inställning för max dagar (parallellt med att hämta vänner för snabbhet)
+                const [configRes, followsRes] = await Promise.all([
+                    fetch('/api/config'),
+                    fetch('/api/following')
+                ]);
+
+                const config = await configRes.json();
+                const follows = await followsRes.json();
+                
+                // Räkna ut datumgränsen (i millisekunder)
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - config.maxDays);
+                const cutoffTime = cutoffDate.getTime();
+
                 if (follows.length === 0) {
                     status.innerHTML = "Du följer ingen än.";
                     return;
                 }
+
+                status.innerText = `Hämtar inlägg från de senaste ${config.maxDays} dagarna...`;
+
+                // 2. Hämta inlägg
                 const promises = follows.map(async (user) => {
                     try {
                         const actor = await proxyFetch(user.url);
                         if (actor.outbox) {
                             let data = await proxyFetch(actor.outbox);
                             if (data.first) data = await proxyFetch(typeof data.first === 'string' ? data.first : data.first.id);
-                            return (data.orderedItems || []).map(i => ({...i, author: user.name}));
+                            
+                            const items = data.orderedItems || data.items || [];
+                            
+                            // 3. FILTRERA HÄR: Ta bort inlägg som är för gamla direkt
+                            return items
+                                .filter(item => {
+                                    const postDate = new Date((item.object || item).published).getTime();
+                                    return postDate > cutoffTime;
+                                })
+                                .map(i => ({...i, author: user.name}));
                         }
                     } catch(e) {}
                     return [];
                 });
+
                 const results = await Promise.all(promises);
+                
+                // Sortera
                 const allPosts = results.flat().sort((a,b) => new Date((b.object||b).published) - new Date((a.object||a).published));
                 
                 status.classList.add('hidden');
+                
+                if (allPosts.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted)">Inget nytt har hänt de senaste dagarna.</div>';
+                    return;
+                }
+
                 let html = '';
                 allPosts.forEach(item => { html += createPostHTML(item); });
                 container.innerHTML = html;
+
             } catch(e) { status.innerText = "Fel: " + e.message; }
         }
 
@@ -720,3 +756,4 @@
     </script>
 </body>
 </html>
+
